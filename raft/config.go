@@ -8,7 +8,7 @@ package raft
 // test with the original before submitting.
 //
 
-import "labrpc"
+import "github.com/JameyWoo/tinykv_raft/labrpc"
 import "log"
 import "sync"
 import "testing"

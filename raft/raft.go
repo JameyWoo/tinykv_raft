@@ -1,12 +1,12 @@
 package raft
 
 import "sync"
-import "labrpc"
+import "github.com/JameyWoo/tinykv_raft/labrpc"
 import "time"
 import "math/rand"
 import "log"
 import "bytes"
-import "labgob"
+import "github.com/JameyWoo/tinykv_raft/labgob"
 import "sort"
 
 
