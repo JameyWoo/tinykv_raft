@@ -396,7 +396,7 @@ func (rf *Raft) updateCommitIndex() bool {
 	return rst
 }
 
-//apply 状态机
+//apply 状态机， 改变， 当前的raft commit 节点
 func (rf *Raft) apply() {
 	rf.lock("Raft.apply")
 	defer rf.unlock("Raft.apply")
