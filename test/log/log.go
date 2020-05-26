@@ -6,6 +6,7 @@ import (
 
 func init() {
 	log.SetLevel(log.ErrorLevel)
+	log.SetReportCaller(true)
 }
 
 func main() {
