@@ -36,6 +36,7 @@ func (t *Arith) Divide(args *Args, quo *Quotient) error {
 func main() {
 
 	arith := new(Arith)
+	fmt.Println(arith)
 	_ = rpc.Register(arith)
 
 	tcpAddr, err := net.ResolveTCPAddr("tcp", ":1235")
