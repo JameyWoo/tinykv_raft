@@ -38,7 +38,11 @@ func ReadYamlConfig(path string) (*Config, error) {
 
 //test yaml
 func main() {
+<<<<<<< HEAD
+	conf, err := ReadYamlConfig("D:\\go\\myproject\\tinykv_raft\\test\\testConfig\\test.yaml")
+=======
 	conf, err := ReadYamlConfig("./test.yaml")
+>>>>>>> 58426ea9f866161003f3356189dfdaec6f054fa0
 	if err != nil {
 		log.Fatal(err)
 	}

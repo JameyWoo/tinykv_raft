@@ -232,6 +232,8 @@ func (cfg *config) start1(i int) {
 
 	//
 	svc := labrpc.MakeService(rf)
+
+
 	srv := labrpc.MakeServer()
 	srv.AddService(svc)
 	cfg.net.AddServer(i, srv)
