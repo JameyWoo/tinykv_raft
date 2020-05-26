@@ -18,7 +18,7 @@ import "sort"
 const Follower, Leader, Candidate int = 1, 2, 3
 
 //心跳周期
-const HeartbeatDuration = time.Duration(time.Millisecond * 600)
+const HeartbeatDuration = time.Duration(time.Millisecond * 2000)
 
 //竞选周期
 const CandidateDuration = HeartbeatDuration * 2
@@ -128,10 +128,15 @@ func (rf *Raft) sendRequestVote(server int, args *RequestVoteArgs, reply *Reques
 	go func() {
 		// RPC
 		rst := rf.peers[server].Call("Raft.RequestVote", args, reply)
+		logrus.Info(rst)
 		ok := true
 		if rst != nil {
+			logrus.Infof("rpc call failed")
 			ok = false
+		} else {
+			logrus.Infof("rpc call success")
 		}
+		logrus.Infof("is agree: %d", reply.IsAgree)
 		rstChan <- ok
 	}()
 	select {
@@ -156,7 +161,7 @@ func (rf *Raft) sendAppendEnteries(server int, req *AppendEntries, resp *RespEnt
 	}()
 	select {
 	case ok = <-rstChan:
-	case <-time.After(time.Millisecond * 400):
+	case <-time.After(time.Millisecond * 3000):
 	}
 	return ok
 }
@@ -533,14 +538,15 @@ func (rf *Raft) readPersist(data []byte) {
 }
 
 // 收到投票请求
-func (rf *Raft) RequestVote(req *RequestVoteArgs, reply *RequestVoteReply) {
+func (rf *Raft) RequestVote(req *RequestVoteArgs, reply *RequestVoteReply) error {
+	logrus.Infof("get request vote")
 	reply.IsAgree = true
 	reply.CurrentTerm, _ = rf.GetState()
 	// 竞选任期小于自身任期，则反对票
 	if reply.CurrentTerm >= req.ElectionTerm {
 		rf.println(rf.me, "refuse", req.Me, "because of term")
 		reply.IsAgree = false
-		return
+		return nil
 	}
 	//竞选任期大于自身任期，则更新自身任期，并设置自己为follow
 	rf.setStatus(Follower)
@@ -562,9 +568,11 @@ func (rf *Raft) RequestVote(req *RequestVoteArgs, reply *RequestVoteReply) {
 		//赞同票后重置选举定时，避免竞争
 		rf.resetCandidateTimer()
 	}
+	return nil
 }
 
 func (rf *Raft) Vote() {
+	logrus.Infof("%d start to vote", rf.me)
 	// 票先增大自身任期
 	rf.addTerm(1)
 	rf.println("start vote :", rf.me, "term :", rf.currentTerm)
@@ -593,6 +601,7 @@ func (rf *Raft) Vote() {
 				return
 			}
 			// RPC 发送投票请求, 将结果保存到 resp
+			logrus.Infof("%d ask %d to vote", rf.me, index)
 			rst := rf.sendRequestVote(index, &req, &resp)
 			// rpc调用失败
 			if !rst {
@@ -610,11 +619,13 @@ func (rf *Raft) Vote() {
 		}(i)
 	}
 	wait.Wait()
+	logrus.Infof("%d get %d votes!", rf.me, agreeVote)
 	//如果存在系统任期更大，则更新任期并转为follow
 	if term > currentTerm {
 		rf.setTerm(term)
 		rf.setStatus(Follower)
 	} else if agreeVote*2 > peercnt { // 获得多数赞同则变成leader
+		logrus.Infof("%d become leader :", rf.me, currentTerm)
 		rf.println(rf.me, "become leader :", currentTerm)
 		rf.setStatus(Leader)
 		rf.replicateLogNow()
@@ -652,19 +663,19 @@ func (rf *Raft) ElectionLoop() {
 }
 
 // 可以用来做心跳包
-func (rf *Raft) RequestAppendEntries(req *AppendEntries, resp *RespEntries) {
-	logrus.Infof("get AppendEntries")
+func (rf *Raft) RequestAppendEntries(req *AppendEntries, resp *RespEntries) error {
+	logrus.Infof("get AppendEntries from %d, his term: ", req.Me, req.Term)
 	currentTerm, _ := rf.GetState()
 	resp.Term = currentTerm
 	resp.Successed = true
 	if req.Term < currentTerm {
 		// leader任期小于自身任期，则拒绝同步log
 		resp.Successed = false
-		return
+		return nil
 	}
 	//乱序日志，不处理
 	if rf.isOldRequest(req) {
-		return
+		return nil
 	}
 	// 否则更新自身任期，切换自生为follow，重置选举定时器
 	// 每次收到消息之后都会重置, 所以这个时间超时了worker就会发起投票
@@ -679,14 +690,14 @@ func (rf *Raft) RequestAppendEntries(req *AppendEntries, resp *RespEntries) {
 			//rf.println(rf.me, "can't find preindex", req.PrevLogTerm)
 			resp.Successed = false
 			resp.LastApplied = rf.lastApplied
-			return
+			return nil
 		}
 		if rf.getLogTermOfIndex(req.PrevLogIndex) != req.PrevLogTerm {
 			//该索引与自身日志不同，则拒绝更新
 			//rf.println(rf.me, "term error", req.PrevLogTerm)
 			resp.Successed = false
 			resp.LastApplied = rf.lastApplied
-			return
+			return nil
 		}
 	}
 	//更新日志
@@ -701,7 +712,7 @@ func (rf *Raft) RequestAppendEntries(req *AppendEntries, resp *RespEntries) {
 	rf.apply()
 	rf.persist()
 
-	return
+	return nil
 }
 
 //复制日志给follower

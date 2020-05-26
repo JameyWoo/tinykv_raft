@@ -22,7 +22,7 @@ import (
 var acceptOver chan int
 
 func init() {
-	logrus.SetReportCaller(true)
+	//logrus.SetReportCaller(true)
 }
 
 func main() {
@@ -68,6 +68,7 @@ func main() {
 	persister := raft.MakePersister()
 
 	meRaft := raft.Make(clients, me, persister, applyCh)
+	rpc.Register(meRaft)
 	logrus.Infof("start to Election")
 	meRaft.ElectionLoop()
 
