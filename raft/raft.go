@@ -1,7 +1,10 @@
 package raft
 
-import "sync"
-import "github.com/JameyWoo/tinykv_raft/labrpc"
+import (
+	"github.com/sirupsen/logrus"
+	"net/rpc"
+	"sync"
+)
 import "time"
 import "math/rand"
 import "log"
@@ -77,7 +80,7 @@ type RespEntries struct {
 
 type Raft struct {
 	mu              sync.Mutex          // Lock to protect shared access to this peer's state
-	peers           []*labrpc.ClientEnd // rpc节点
+	peers           []*rpc.Client // rpc节点
 	persister       *Persister          // Object to hold this peer's persisted state
 	me              int                 // 自己服务编号
 
@@ -125,7 +128,11 @@ func (rf *Raft) sendRequestVote(server int, args *RequestVoteArgs, reply *Reques
 	go func() {
 		// RPC
 		rst := rf.peers[server].Call("Raft.RequestVote", args, reply)
-		rstChan <- rst
+		ok := true
+		if rst != nil {
+			ok = false
+		}
+		rstChan <- ok
 	}()
 	select {
 	case ok = <-rstChan:
@@ -141,7 +148,11 @@ func (rf *Raft) sendAppendEnteries(server int, req *AppendEntries, resp *RespEnt
 	ok := false
 	go func() {
 		rst := rf.peers[server].Call("Raft.RequestAppendEntries", req, resp)
-		rstChan <- rst
+		ok := true
+		if rst != nil {
+			ok = false
+		}
+		rstChan <- ok
 	}()
 	select {
 	case ok = <-rstChan:
@@ -627,10 +638,12 @@ func (rf *Raft) ElectionLoop() {
 		if rf.getStatus() == Candidate {
 			//如果状态为竞选者，则直接发动投票
 			rf.resetCandidateTimer()
+			logrus.Infof("candidate %d start to call Vote()", rf.me)
 			rf.Vote()
 		} else if rf.getStatus() == Follower {
 			//如果状态为follow，则转变为candidata并发动投票
 			rf.setStatus(Candidate)
+			logrus.Infof("follower %d start to be Cand and Vote()", rf.me)
 			rf.resetCandidateTimer()
 			rf.Vote()
 		}
@@ -640,6 +653,7 @@ func (rf *Raft) ElectionLoop() {
 
 // 可以用来做心跳包
 func (rf *Raft) RequestAppendEntries(req *AppendEntries, resp *RespEntries) {
+	logrus.Infof("get AppendEntries")
 	currentTerm, _ := rf.GetState()
 	resp.Term = currentTerm
 	resp.Successed = true
@@ -811,10 +825,10 @@ func (rf *Raft) SaveSnapshot(index int,snapshot []byte) {
 	
 }
 
-func Make(peers []*labrpc.ClientEnd, me int,
+func Make(peers []*rpc.Client, me int,
 	persister *Persister, applyCh chan ApplyMsg) *Raft {
 	rf := &Raft{}
-	// 用 *labrpc.ClientEnd 代表一个客户端(其他结点), 因为我只需要跟他们进行通信(rpc)
+	// 用 *rpc.Client 代表一个客户端(其他结点), 因为我只需要跟他们进行通信(rpc)
 	rf.peers = peers
 	rf.persister = persister
 	rf.me = me

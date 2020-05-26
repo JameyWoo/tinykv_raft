@@ -8,7 +8,9 @@ package raft
 // test with the original before submitting.
 //
 
-import "github.com/JameyWoo/tinykv_raft/labrpc"
+import (
+	"github.com/JameyWoo/tinykv_raft/labrpc"
+)
 import "log"
 import "sync"
 import "testing"
@@ -224,7 +226,8 @@ func (cfg *config) start1(i int) {
 
 	// 生成一个 Raft server, 启动执行
 	// 这是lab2A最重要的函数
-	rf := Make(ends, i, cfg.saved[i], applyCh)
+	//rf := Make(ends, i, cfg.saved[i], applyCh)
+	rf := new(Raft)
 
 	cfg.mu.Lock()
 	cfg.rafts[i] = rf
