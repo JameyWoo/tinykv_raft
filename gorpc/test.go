@@ -1,4 +1,4 @@
-package gorpc
+package main
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"net/rpc"
 	"os"
 	"strconv"
-	"testing"
+	"time"
 )
 
 // 模拟一个raft********************************************************
@@ -25,29 +25,29 @@ func (test *raft) handler2(args int, reply *string) {
 	*reply = strconv.Itoa(args) + "deal with handler2"
 }
 
-
-
-func TestStartRaft(t *testing.T) {
+func main() {
 
 	// 解析配置文件
 	// 模拟 读取自己   的 host
-	me := "127.0.0.1:8001"
-	var peers = []string{"127.0.0.1:8001", "127.0.0.1:8002"}
+	me := "127.0.0.1:8002"
+	var peers = []string{"127.0.0.1:8001", "127.0.0.1:8003"}
 
-	testRaft := new(raft)
+	testRaft := new(raft) // 创建 raft
 
 	gorpc := new(gorpc)
-	gorpc.Addr = me     //设置自己的host
-	gorpc.Peers = peers //设置peers 的服务
-	gorpc.init(testRaft)
+	gorpc.Addr = me      //设置自己的host
+	gorpc.Peers = peers  //设置peers 的服务
+	gorpc.init(testRaft) // 初始化 raft
 
-	t.Log("success")
+	for{
+		time.Sleep(5*time.Second)
+	}
 }
 
 // 封装 go 的rpc
 type gorpc struct {
-	Addr  string // 那个端口提供的服务， 在同一台机子上跑的话用端口作为区分
-	Peers []string  // 暂存
+	Addr  string   // 那个端口提供的服务， 在同一台机子上跑的话用端口作为区分
+	Peers []string // 暂存
 }
 
 func (gorpc *gorpc) init(raft *raft) {
@@ -68,11 +68,22 @@ func (gorpc *gorpc) init(raft *raft) {
 			}()
 		}
 	}()
-
+	fmt.Println("init me over")
 	for _, p := range gorpc.Peers {
-		client, err := rpc.Dial("tcp", p) // 这里会不会阻塞呢？？？？
-		checkError(err)
-		raft.peers = append(raft.peers, client)
+		p := p			// 要一个中间变量， c++ 的lambda 也要
+		go func() { // 创建协程一直尝试去连接 peers
+			for {
+				client, err := rpc.Dial("tcp", p) // 这里会不会阻塞呢？？？？
+				if err != nil {
+					fmt.Println("Fatal error ", err.Error())
+					time.Sleep(3 * time.Second)	// 休息一下继续来
+					continue
+				}
+				fmt.Printf("connect %s success", p)
+				raft.peers = append(raft.peers, client)
+				break
+			}
+		}()
 	}
 }
 
