@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/rpc"
 	"os"
+	"testing"
 	"time"
 )
 
@@ -19,9 +20,9 @@ type Quotient struct {
 
 type Arith int
 
-func (t *Arith) Multiply(args *Args, reply *int) error {
+func (t *Arith) Multiply(args *Args, reply *int) bool {
 	*reply = args.A * args.B
-	return nil
+	return true
 }
 
 func (t *Arith) Divide(args *Args, quo *Quotient) error {
@@ -33,7 +34,7 @@ func (t *Arith) Divide(args *Args, quo *Quotient) error {
 	return nil
 }
 
-func main() {
+func TestServer(t *testing.T) {
 
 	arith := new(Arith)
 	fmt.Println(arith)
@@ -51,7 +52,7 @@ func main() {
 			continue
 		}
 		fmt.Printf("receive from %s\n",conn.RemoteAddr() )
-		time.Sleep(5 * time.Second)
+		time.Sleep(1 * time.Second)
 		rpc.ServeConn(conn)
 	}
 
