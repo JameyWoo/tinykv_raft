@@ -96,6 +96,42 @@ func (rf *Raft) resetCandidateTimer() {
 	rf.eletionTimer.Reset(duration)
 }
 
+
+// 收到投票请求
+func (rf *Raft) RequestVote(req *RequestVoteArgs, reply *RequestVoteReply) error {
+	logrus.Println(rf.me, " RequestVote ", req.Me, " to vote")
+	reply.IsAgree = true
+	reply.CurrentTerm, _ = rf.GetState()
+	// 竞选任期小于自身任期，则反对票
+	if reply.CurrentTerm >= req.ElectionTerm {
+		logrus.Println("me:", rf.me, " refuse ", req.Me, "because of term")
+		reply.IsAgree = false
+		return nil
+	}
+	//竞选任期大于自身任期，则更新自身任期，并设置自己为follow
+	rf.setStatus(Follower)
+	rf.setTerm(req.ElectionTerm)
+	logterm, logindex := rf.getLogTermAndIndex()
+	// 判定竞选者日志是否新于自己, logterm 是自己的
+	if logterm > req.LogTerm {
+		// 日志比自己旧, 那么拒绝
+		logrus.Println(rf.me, "refuse", req.Me, "because of logs's term")
+		reply.IsAgree = false
+	} else if logterm == req.LogTerm {
+		reply.IsAgree = logindex <= req.LogIndex
+		if !reply.IsAgree {
+			logrus.Println(rf.me, "refuse", req.Me, "because of logs's index")
+		}
+	}
+	if reply.IsAgree {
+		logrus.Println(rf.me, "agree", req.Me)
+		//赞同票后重置选举定时，避免竞争
+		rf.resetCandidateTimer()
+	}
+	return nil
+}
+
+
 // TODO: so, 这个选举是怎么运行的. 不是说要么任期到期要么自己收不到消息(leader宕机)才发起选举吗
 // 选举定时器loop
 func (rf *Raft) ElectionLoop() {

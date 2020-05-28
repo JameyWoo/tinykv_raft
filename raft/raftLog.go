@@ -222,40 +222,6 @@ func (rf *Raft) readPersist(data []byte) {
 	rf.logSnapshot.Datas = rf.persister.ReadSnapshot()
 }
 
-// 收到投票请求
-func (rf *Raft) RequestVote(req *RequestVoteArgs, reply *RequestVoteReply) error {
-	logrus.Println(rf.me, " RequestVote ", req.Me, " to vote")
-	reply.IsAgree = true
-	reply.CurrentTerm, _ = rf.GetState()
-	// 竞选任期小于自身任期，则反对票
-	if reply.CurrentTerm >= req.ElectionTerm {
-		rf.println(rf.me, "refuse", req.Me, "because of term")
-		reply.IsAgree = false
-		return nil
-	}
-	//竞选任期大于自身任期，则更新自身任期，并设置自己为follow
-	rf.setStatus(Follower)
-	rf.setTerm(req.ElectionTerm)
-	logterm, logindex := rf.getLogTermAndIndex()
-	// 判定竞选者日志是否新于自己, logterm 是自己的
-	if logterm > req.LogTerm {
-		// 日志比自己旧, 那么拒绝
-		rf.println(rf.me, "refuse", req.Me, "because of logs's term")
-		reply.IsAgree = false
-	} else if logterm == req.LogTerm {
-		reply.IsAgree = logindex <= req.LogIndex
-		if !reply.IsAgree {
-			rf.println(rf.me, "refuse", req.Me, "because of logs's index")
-		}
-	}
-	if reply.IsAgree {
-		rf.println(rf.me, "agree", req.Me)
-		//赞同票后重置选举定时，避免竞争
-		rf.resetCandidateTimer()
-	}
-	return nil
-}
-
 // 可以用来做心跳包
 func (rf *Raft) RequestAppendEntries(req *AppendEntries, resp *RespEntries) error {
 	logrus.Infof("RequestAppendEntries from %d, his term: %d", req.Me, req.Term)
@@ -298,7 +264,7 @@ func (rf *Raft) RequestAppendEntries(req *AppendEntries, resp *RespEntries) erro
 	rf.setLastLog(req)
 	if len(req.Entries) > 0 || req.Snapshot.Index > 0 {
 		if len(req.Entries) > 0 {
-			rf.println(rf.me, "update log from ", req.Me, ":", req.Entries[0].Term, "-", req.Entries[0].Index, "to", req.Entries[len(req.Entries)-1].Term, "-", req.Entries[len(req.Entries)-1].Index)
+			logrus.Println(rf.me, "update log from ", req.Me, ":", req.Entries[0].Term, "-", req.Entries[0].Index, "to", req.Entries[len(req.Entries)-1].Term, "-", req.Entries[len(req.Entries)-1].Index)
 		}
 		rf.updateLog(req.PrevLogIndex, req.Entries, &req.Snapshot)
 	}
@@ -332,7 +298,7 @@ func (rf *Raft) replicateLogTo(peer int) bool {
 		if rst && isLeader {
 			// 如果某个节点任期大于自己，则更新任期，变成follow
 			if resp.Term > currentTerm {
-				rf.println(rf.me, "become follow ", peer, "term :", resp.Term)
+				logrus.Println(rf.me, "become follow ", peer, "term :", resp.Term)
 				rf.setTerm(resp.Term)
 				rf.setStatus(Follower)
 			} else if !resp.Successed { //如果更新失败则更新follow日志next索引
@@ -389,7 +355,7 @@ func (rf *Raft) ReplicateLogLoop(peer int) {
 			}
 		}
 	}
-	rf.println(rf.me, "-", peer, "Exit ReplicateLogLoop")
+	logrus.Println(rf.me, "-", peer, "Exit ReplicateLogLoop")
 }
 
 func (rf *Raft) Start(command interface{}) (index int, term int, isLeader bool) {
