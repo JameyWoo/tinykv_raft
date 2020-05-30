@@ -17,6 +17,8 @@ import (
 	"net"
 	"net/rpc"
 	"os"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -41,9 +43,37 @@ type Config struct {
 	Peers []string `yaml:"peers"`
 }
 
-func main() {
+type MyFormatter struct{}
 
-	conf, err := ReadYamlConfig("D:\\go\\myproject\\tinykv_raft\\config.yaml")
+func (s *MyFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+	timestamp := time.Now().Local().Format("2006/01/02 15:04:05")
+	fmt.Println(entry.Caller.File)
+	fullPath := strings.Split(entry.Caller.File, "/")
+	path := fullPath[len(fullPath) - 1] + ":" + strconv.Itoa(entry.Caller.Line)
+	msg := fmt.Sprintf("%s %8s %15s\t %s\n",
+		timestamp,
+		"[" + strings.ToUpper(entry.Level.String()) + "]",
+		path,
+		entry.Message)
+	return []byte(msg), nil
+}
+
+func init() {
+	logrus.SetFormatter(new(MyFormatter))
+	logrus.SetReportCaller(true)
+}
+
+func main() {
+	fmt.Printf("E:/virtualShare/gopath3/src/tinykv_raft/tinykv.go \n")
+	var configPath string
+	if len(os.Args) > 1 {
+		configPath = os.Args[1]
+		logrus.Infof("config path: %s", configPath)
+	} else {
+		logrus.Panic("no configPath!")
+	}
+
+	conf, err := ReadYamlConfig(configPath)
 	if err != nil {
 		fmt.Println(err)
 	}
