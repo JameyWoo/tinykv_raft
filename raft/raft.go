@@ -94,10 +94,8 @@ type Raft struct {
 
 	nextIndex  []int //记录每个follow的同步日志状态
 	matchIndex []int //记录每个follow日志最大索引，0递增
-	//applyCh        chan ApplyMsg //状态机apply
 	isKilled bool          //节点退出
 	lastLogs AppendEntries //最后更新日志
-	//EnableDebugLog bool          //打印调试日志开关
 	LastGetLock string
 }
 
@@ -142,7 +140,7 @@ func Make(peers []*rpc.Client, me int,
 		log.SetFlags(log.Ltime | log.Lmicroseconds)
 	})
 	//Leader选举协程
-	go rf.ElectionLoop()
-
+	//go rf.ElectionLoop()
+	//放到主线程执行
 	return rf
 }

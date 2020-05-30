@@ -45,7 +45,7 @@ func (rf *Raft) setStatus(status int) {
 	defer rf.unlock("Raft.setStatus")
 	// 设置节点状态，变换为follow时候重置选举定时器（避免竞争）
 	if (rf.status != Follower) && (status == Follower) {
-		rf.resetCandidateTimer()
+		rf.resetCandidateTimer()//******************************************重置选举时间********************************************
 	}
 
 	// 节点变为leader，则初始化follow日志状态

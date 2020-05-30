@@ -143,7 +143,6 @@ func main() {
 	}()
 	waitGroup.Wait() //等待所有初始化连接，之后挂了没关系， 但一定要有第一次
 
-	logrus.Println("fuck")
 	persister := raft.MakePersister()
 
 	meRaft := raft.Make(peers, indexMe, persister)

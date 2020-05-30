@@ -75,10 +75,10 @@ func (rf *Raft) sendRequestVote(server int, args *RequestVoteArgs, reply *Reques
 		rst := rf.peers[server].Call("Raft.RequestVote", args, reply)
 		ok := true
 		if rst != nil {
-			logrus.Println("me: ",rf.me, " rpc call", server, "failed")
+			logrus.Println("me: ", rf.me, " rpc call", server, "failed")
 			ok = false
 		}
-		logrus.Print("me: ",rf.me, " isAgree( ", reply.IsAgree, ") me: ", args.Me, " to be leader")
+		logrus.Print("peer: ",server, " isAgree( ", reply.IsAgree, ") me: ", args.Me, " to be leader")
 		rstChan <- ok
 	}()
 	select {
@@ -95,7 +95,6 @@ func (rf *Raft) resetCandidateTimer() {
 	duration := time.Duration(randCnt)*time.Millisecond + CandidateDuration
 	rf.eletionTimer.Reset(duration)
 }
-
 
 // 收到投票请求
 func (rf *Raft) RequestVote(req *RequestVoteArgs, reply *RequestVoteReply) error {
@@ -126,11 +125,10 @@ func (rf *Raft) RequestVote(req *RequestVoteArgs, reply *RequestVoteReply) error
 	if reply.IsAgree {
 		logrus.Println(rf.me, "agree", req.Me)
 		//赞同票后重置选举定时，避免竞争
-		rf.resetCandidateTimer()
+		rf.resetCandidateTimer()//******************************************重置选举时间********************************************
 	}
 	return nil
 }
-
 
 // TODO: so, 这个选举是怎么运行的. 不是说要么任期到期要么自己收不到消息(leader宕机)才发起选举吗
 // 选举定时器loop

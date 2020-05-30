@@ -239,7 +239,7 @@ func (rf *Raft) RequestAppendEntries(req *AppendEntries, resp *RespEntries) erro
 	}
 	// 否则更新自身任期，切换自生为follow，重置选举定时器
 	// 每次收到消息之后都会重置, 所以这个时间超时了worker就会发起投票
-	rf.resetCandidateTimer()
+	rf.resetCandidateTimer()//******************************************重置选举时间********************************************
 	rf.setTerm(req.Term)
 	rf.setStatus(Follower)
 	_, logindex := rf.getLogTermAndIndex()
